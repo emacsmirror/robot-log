@@ -333,9 +333,9 @@ its level, as a pair."
 (defun robot-log-toggle ()
   "Toggle the body of the current item."
   (interactive)
-  (if (robot-log-keyword-hidden-p)
-      (robot-log-keyword-show)
-    (robot-log-keyword-hide)))
+  (if (robot-log-hidden-p)
+      (robot-log-show)
+    (robot-log-hide)))
 
 (defun robot-log-fold-level (level)
   "Fold items corresponding to LEVEL or higher."
