@@ -57,28 +57,32 @@
 (defvar robot-log-level-regexp
   "\\(NONE\\|TRACE\\|DEBUG\\|INFO\\|WARN\\|ERROR\\|FAIL\\|SKIP\\)")
 
-(defun robot-log-level-regexp (&optional text level)
-  "Return a regexp to match a marker for TEXT using LEVEL, a base 0
-integer.  TEXT defaults to \"START\"; it should be the opening
-text such as \"START\" or \"END\".  When LEVEL is not provided,
-the regexp matches for any level."
+(defun robot-log-level-regexp (&optional level text type name)
+  "Return a regexp to match a marker for TEXT, TYPE and NAME using LEVEL,
+a base 0 integer.  TEXT defaults to \"START\"; it should be the
+opening text such as \"START\" or \"END\".  TYPE defaults to '
+\\([^:]*\\): ', which matches any type name.  NAME defaults to
+the '\\([^[(]*\\) ', which matches any keyword name.  When LEVEL
+is not provided, the regexp matches for any level."
   (let ((hyphen-regexp (if level
                            (string-join (make-list level "-"))
                          "-*"))
-        (text (or text "START")))
+        (text (or text "START"))
+        (type (concat " " (or type "\\([^:]*\\): ")))
+        (name (or name "\\([^[(]*\\) ")))
     (concat robot-log-timestamp-regexp " - "
             robot-log-level-regexp " - "
             "\\+\\(" hyphen-regexp "\\) " text
             ;; Match the keyword type and name, if any, as 3rd and 4th
             ;; groups.
-            " \\([^:]*\\):"       ;keyword type, e.g.: TEST or KEYWORD
-            " \\([^[(]*\\) ")))   ;name, e.g.: BuiltIn.Log or ""
+            type                  ;keyword type, e.g.: TEST or KEYWORD
+            name)))               ;name, e.g.: BuiltIn.Log or ""
 
-(defun robot-log-start-level-regexp (&optional level)
-  (robot-log-level-regexp "START" level))
+(defun robot-log-start-level-regexp (&optional level type name)
+  (robot-log-level-regexp level "START" type name))
 
-(defun robot-log-end-level-regexp (&optional level)
-  (robot-log-level-regexp "END" level))
+(defun robot-log-end-level-regexp (&optional level type name)
+  (robot-log-level-regexp level "END" type name))
 
 (defvar robot-log-none-level-regexp " - \\(NONE\\) - "
   "Regexp for the none level text.")
@@ -380,27 +384,67 @@ negative, reverse the search direction."
   "Check whether the KEYWORD is for handling errors."
   (member syntax robot-log-handling-syntaxes))
 
-(defun robot-log-parents ()
-  "Return the list of keywords of the keyword at (or above) point."
-  (interactive)
-  (save-excursion
-    (named-let next ((data (robot-log-previous))
-                     (parents '())
-                     (previous-level 1.0e+INF))
-      (pcase data
-        (`(,parent-level ,_ ,_)
-         (if (< parent-level previous-level)
-             (next (robot-log-previous) (cons data parents) parent-level)
-           (reverse parents)))
-        (_ (error "unexpected data type %S" data))))))
+;;; This variable holds the sections of the file which are covered by
+;;; error handling keywords or syntaxes.
+(defvar-local robot-log--handled-lines nil)
 
-(defun robot-log-handling-parents-p ()
-  "Check whether the keyword at point has error handling parents."
-  (let* ((parents (robot-log-parents))
-         (parent-types (mapcar #'cl-second parents))
-         (parent-names (mapcar #'cl-third parents)))
-    (or (seq-find #'robot-log-handling-syntax-p parent-types)
-        (seq-find #'robot-log-handling-keyword-p parent-names))))
+(defun robot-log-merge-spans (spans)
+  "Simplify SPANS, merging overlapping entries together."
+  (let ((sorted-spans (sort spans (lambda (x y)
+                                    (< (car x) (car y))))))
+    (reverse
+     (seq-reduce (lambda (results val)
+                   (let* ((start (car val))
+                          (end (cdr val))
+                          (prev-val (car results))
+                          (prev-start (and prev-val (car prev-val)))
+                          (prev-end (and prev-val (cdr prev-val))))
+                     (if prev-val
+                         (if (>= prev-end start)
+                             (cons (cons prev-start (max prev-end end))
+                                   (cdr results))
+                           (cons val results))
+                       (cons val results))))
+                 sorted-spans '()))))
+
+(defun robot-log-compute-handled-lines ()
+  "Find out which lines of the log files are nested in handling keywords."
+  (robot-log-merge-spans
+   (save-excursion
+     (seq-remove
+      #'not
+      (mapcan
+       (lambda (item)
+         (let* ((type (and (member item robot-log-handling-syntaxes)
+                           item))
+                (name (and (not type) item)))
+           (named-let next ((start (point-min))
+                            (handled-spans '()))
+             (goto-char start)
+             (let ((start-regexp (robot-log-start-level-regexp nil type name)))
+               (if (re-search-forward start-regexp nil 'noerror)
+                   (let* ((pos (point))
+                          (level (length (match-string 2)))
+                          (line (line-number-at-pos))
+                          (end-regexp (robot-log-end-level-regexp
+                                       level type name)))
+                     (re-search-forward end-regexp nil)
+                     (next pos (cons (cons line (line-number-at-pos))
+                                     handled-spans)))
+                 (reverse handled-spans))))))
+       (append robot-log-handling-syntaxes robot-log-handling-keywords))))))
+
+(defun robot-log-handled-p (&optional line)
+  "Predicate to check if LINE is subject to error handling."
+  (unless robot-log--handled-lines
+    (robot-log-compute-handled-lines))
+  (let ((line (or line (line-number-at-pos))))
+    (seq-find (lambda (span)
+                (let ((start (car span))
+                      (end (cdr span)))
+                  (and (>= line start)
+                       (<= line end))))
+              robot-log--handled-lines)))
 
 (defun robot-log-next-unhandled-error (&optional arg)
   "Go to the next un-handled error, repeating ARG times.  When ARG
@@ -409,6 +453,8 @@ the error doesn't have any error handling parent syntax or
 keywords."
   (interactive "^p")
   (and arg (= 0 arg) (user-error "arg cannot be 0"))
+  (unless robot-log--handled-lines
+    (robot-log-compute-handled-lines))
   (let ((unhandled-error
          (save-excursion
            (named-let iter ((count 0))
@@ -417,7 +463,7 @@ keywords."
                       (if (not pos)
                           (progn
                             (robot-log-next-error (if (< arg 0) -1 1))
-                            (next (if (not (robot-log-handling-parents-p))
+                            (next (if (not (robot-log-handled-p))
                                       (point)
                                     nil)))
                         pos))))
