@@ -3,6 +3,12 @@
 
 ;; Copyright © 2022 Maxim Cournoyer <maxim.cournoyer@gmail.com>
 
+;; Keywords: robot debug log viewer
+;; Homepage: https://git.sr.ht/~apteryx/emacs-robot-log
+;; Package-Requires: ((emacs "28.1"))
+;; Package-Version: 0.1.0
+;; SPDX-License-Identifier: GPL-3.0-or-later
+
 ;; robot-log is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
