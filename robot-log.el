@@ -411,36 +411,42 @@ negative, reverse the search direction."
                  sorted-spans '()))))
 
 (defun robot-log-compute-handled-lines ()
-  "Find out which lines of the log files are nested in handling keywords."
-  (robot-log-merge-spans
-   (save-excursion
-     (seq-remove
-      #'not
-      (mapcan
-       (lambda (item)
-         (let* ((type (and (member item robot-log-handling-syntaxes)
-                           item))
-                (name (and (not type) item)))
-           (named-let next ((start (point-min))
-                            (handled-spans '()))
-             (goto-char start)
-             (let ((start-regexp (robot-log-start-level-regexp nil type name)))
-               (if (re-search-forward start-regexp nil 'noerror)
-                   (let* ((pos (point))
-                          (level (length (match-string 2)))
-                          (line (line-number-at-pos))
-                          (end-regexp (robot-log-end-level-regexp
-                                       level type name)))
-                     (re-search-forward end-regexp nil)
-                     (next pos (cons (cons line (line-number-at-pos))
-                                     handled-spans)))
-                 (reverse handled-spans))))))
-       (append robot-log-handling-syntaxes robot-log-handling-keywords))))))
+  "Find out which lines of the log files are nested in handling keywords.
+
+The result is computed only once and cached."
+  (unless robot-log--handled-lines
+    (setq
+     robot-log--handled-lines
+     (robot-log-merge-spans
+      (save-excursion
+        (seq-remove
+         #'not
+         (mapcan
+          (lambda (item)
+            (let* ((type (and (member item robot-log-handling-syntaxes)
+                              item))
+                   (name (and (not type) item)))
+              (named-let next ((start (point-min))
+                               (handled-spans '()))
+                (goto-char start)
+                (let ((start-regexp (robot-log-start-level-regexp nil type
+                                                                  name)))
+                  (if (re-search-forward start-regexp nil 'noerror)
+                      (let* ((pos (point))
+                             (level (length (match-string 2)))
+                             (line (line-number-at-pos))
+                             (end-regexp (robot-log-end-level-regexp
+                                          level type name)))
+                        (re-search-forward end-regexp nil)
+                        (next pos (cons (cons line (line-number-at-pos))
+                                        handled-spans)))
+                    (reverse handled-spans))))))
+          (append robot-log-handling-syntaxes robot-log-handling-keywords)))))))
+  robot-log--handled-lines)
 
 (defun robot-log-handled-p (&optional line)
   "Predicate to check if LINE is subject to error handling."
-  (unless robot-log--handled-lines
-    (robot-log-compute-handled-lines))
+  (robot-log-compute-handled-lines)
   (let ((line (or line (line-number-at-pos))))
     (seq-find (lambda (span)
                 (let ((start (car span))
@@ -456,11 +462,10 @@ the error doesn't have any error handling parent syntax or
 keywords."
   (interactive "^p")
   (and arg (= 0 arg) (user-error "arg cannot be 0"))
-  (unless robot-log--handled-lines
-    (robot-log-compute-handled-lines))
+  (robot-log-compute-handled-lines)
   (let ((unhandled-error
          (save-excursion
-           (named-let iter ((count 0))
+           (named-let iter ((count 1))
              (let ((position
                     (named-let next ((pos nil))
                       (if (not pos)
