@@ -33,6 +33,9 @@
 
 ;;; Code:
 
+;;; Workaround for https://debbugs.gnu.org/cgi/bugreport.cgi?bug=56473.
+(require 'subr-x)
+
 (defvar robot-log-handling-syntaxes (list "TRY")
   "The syntaxes likely to handle failures.")
 
