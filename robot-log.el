@@ -1,5 +1,4 @@
-;;; -*- lexical-binding: t -*-
-;;; robot-log.el --- Major mode for viewing RobotFramework debug log files
+;;; robot-log.el --- Major mode for viewing RobotFramework debug log files -*- lexical-binding: t -*-
 
 ;; Copyright © 2022 Maxim Cournoyer <maxim.cournoyer@gmail.com>
 
@@ -61,12 +60,12 @@
   "\\(NONE\\|TRACE\\|DEBUG\\|INFO\\|WARN\\|ERROR\\|FAIL\\|SKIP\\)")
 
 (defun robot-log-level-regexp (&optional level text type name)
-  "Return a regexp to match a marker for TEXT, TYPE and NAME using LEVEL,
-a base 0 integer.  TEXT defaults to \"START\"; it should be the
-opening text such as \"START\" or \"END\".  TYPE defaults to '
-\\([^:]*\\): ', which matches any type name.  NAME defaults to
-the '\\([^[(]*\\) ', which matches any keyword name.  When LEVEL
-is not provided, the regexp matches for any level."
+  "Return a regexp to match a marker for LEVEL, TEXT, TYPE and NAME.
+LEVEL should be a base 0 integer.  TEXT defaults to \"START\"; it
+should be the opening text such as \"START\" or \"END\".  TYPE
+defaults to ' \\([^:]*\\): ', which matches any type name.  NAME
+defaults to the '\\([^[(]*\\) ', which matches any keyword name.
+When LEVEL is not provided, the regexp matches for any level."
   (let ((hyphen-regexp (if level
                            (string-join (make-list level "-"))
                          "-*"))
@@ -82,9 +81,15 @@ is not provided, the regexp matches for any level."
             name)))               ;name, e.g.: BuiltIn.Log or ""
 
 (defun robot-log-start-level-regexp (&optional level type name)
+  "Return a regexp matching a START directive.
+LEVEL, TYPE and NAME are to be used as documented for
+function `robot-log-level-regexp'."
   (robot-log-level-regexp level "START" type name))
 
 (defun robot-log-end-level-regexp (&optional level type name)
+  "Return a regexp matching an END directive.
+LEVEL, TYPE and NAME are to be used as documented for function
+`robot-log-level-regexp'."
   (robot-log-level-regexp level "END" type name))
 
 (defvar robot-log-none-level-regexp " - \\(NONE\\) - "
@@ -237,11 +242,13 @@ is not provided, the regexp matches for any level."
 ;;;
 
 (defun robot-log-search-forward (regexp arg)
-  "Like `re-search-forward', but with normalized cursor position."
+  "Like `re-search-forward', but with normalized cursor position.
+REGEXP and ARG are to be used as documented by function
+`re-search-forward'."
   (let ((position (or (save-excursion
                         (end-of-line (if (> arg 0) 1 0)) ;skip current line
                         (re-search-forward regexp nil 'noerror (or arg 1)))
-                      (user-error "no more items"))))
+                      (user-error "No more items"))))
     (goto-char position)
     (beginning-of-line)))
 
@@ -250,7 +257,7 @@ is not provided, the regexp matches for any level."
 Move backward when ARG is negative.  It returns a list containing
 the keyword level, its type and its name, when available."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "arg cannot be 0"))
+  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
   (robot-log-search-forward robot-log-start-regexp arg)
   (list (length (match-string 2))
         (substring-no-properties (match-string 3))
@@ -260,7 +267,7 @@ the keyword level, its type and its name, when available."
   "Move to the previous start mark, repeating ARG times.
 Move backward when ARG is negative."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "arg cannot be 0"))
+  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
   (robot-log-next (- (or arg 1))))
 
 (defun robot-log-current-start-level ()
@@ -270,32 +277,33 @@ Move backward when ARG is negative."
                        (re-search-forward robot-log-start-regexp
                                           (point-at-eol) 'noerror)
                        (match-string 2))
-                     (user-error "no start marker on current line"))))
+                     (user-error "No start marker on current line"))))
     (length hyphens)))
 
 (defun robot-log-next-same-level (&optional arg)
-  "Move to the next keyword which is at the same depth, repeating
-ARG times.  Move backward when ARG is negative."
+  "Move to the next keyword which is at the same depth.
+The search is repeated ARG times.  Move backward when ARG is negative."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "arg cannot be 0"))
+  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
   (let ((level (robot-log-current-start-level)))
     (robot-log-search-forward (robot-log-start-level-regexp level) arg)))
 
 (defun robot-log-previous-same-level (&optional arg)
-  "Move to the previous keyword which is at the same depth,
-repeating ARG times.  Move backward when ARG is negative."
+  "Move to the previous keyword which is at the same depth.
+The search is repeated ARG times.  Move backward when ARG is
+negative."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "arg cannot be 0"))
+  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
   (robot-log-next-same-level (- (or arg 1))))
 
 (defun robot-log-search-start-backward ()
-  "Return the starting marker on the current line or before, along
-its level, as a pair."
+  "Return the starting marker and its level on the current line or before.
+The result is returned as a pair."
   (save-excursion
     (end-of-line)
     (let ((start (re-search-backward robot-log-start-regexp nil 'noerror)))
       (unless start
-        (user-error "no start marker on current line or before"))
+        (user-error "No start marker on current line or before"))
       (goto-char start)
       (end-of-line)         ;the opening line is preserved as a header
       (cons (point) (length (match-string 2))))))
@@ -310,7 +318,7 @@ its level, as a pair."
       (end-of-line)
       (let ((end (re-search-forward end-regexp nil 'noerror)))
         (unless end
-          (user-error "no end keyword/marker"))
+          (user-error "No end keyword/marker"))
         (goto-char end)
         (cons start (point-at-eol))))))
 
@@ -364,19 +372,19 @@ its level, as a pair."
     (goto-char (point-min))))
 
 (defun robot-log-next-error (&optional arg)
-  "Go to the next error, repeating ARG times.  When ARG is
-negative, reverse the search direction."
+  "Go to the next error, repeating ARG times.
+When ARG is negative, reverse the search direction."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "arg cannot be 0"))
+  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
   (robot-log-search-forward
    (concat "\\(" robot-log-error-level-regexp
            "\\|" robot-log-fail-level-regexp "\\)") arg))
 
 (defun robot-log-previous-error (&optional arg)
-  "Move to the previous error, repeating ARG times.  When ARG is
-negative, reverse the search direction."
+  "Move to the previous error, repeating ARG times.
+When ARG is negative, reverse the search direction."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "arg cannot be 0"))
+  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
   (robot-log-next-error (- (or arg 1))))
 
 (defun robot-log-handling-keyword-p (keyword)
@@ -384,7 +392,7 @@ negative, reverse the search direction."
   (member keyword robot-log-handling-keywords))
 
 (defun robot-log-handling-syntax-p (syntax)
-  "Check whether the KEYWORD is for handling errors."
+  "Check whether the SYNTAX is for handling errors."
   (member syntax robot-log-handling-syntaxes))
 
 ;;; This variable holds the sections of the file which are covered by
@@ -456,12 +464,12 @@ The result is computed only once and cached."
               robot-log--handled-lines)))
 
 (defun robot-log-next-unhandled-error (&optional arg)
-  "Go to the next un-handled error, repeating ARG times.  When ARG
-is negative, reverse the search direction.  Un-handled means that
-the error doesn't have any error handling parent syntax or
-keywords."
+  "Go to the next un-handled error, repeating ARG times.
+When ARG is negative, reverse the search direction.  Un-handled
+means that the error doesn't have any error handling parent
+syntax or keywords."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "arg cannot be 0"))
+  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
   (robot-log-compute-handled-lines)
   (let ((unhandled-error
          (save-excursion
@@ -482,15 +490,16 @@ keywords."
       (goto-char unhandled-error))))
 
 (defun robot-log-previous-unhandled-error (&optional arg)
-  "Go to the previous un-handled error, repeating ARG times.  When ARG is negative,
-reverse the search direction.  Un-handled means that the error
-doesn't have any error handling parent syntax or keywords."
+  "Go to the previous un-handled error, repeating ARG times.
+When ARG is negative, reverse the search direction.  Un-handled
+means that the error doesn't have any error handling parent
+syntax or keywords."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "arg cannot be 0"))
+  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
   (robot-log-next-unhandled-error (- (or arg 1))))
 
 (defun robot-log-configure-keymap (map)
-  "The `robot-log-mode' keys map."
+  "Add the `robot-log-mode' keys to MAP."
   (define-key map (kbd "n") 'robot-log-next)
   (define-key map (kbd "p") 'robot-log-previous)
   (define-key map (kbd "N") 'robot-log-next-same-level)
@@ -520,3 +529,7 @@ doesn't have any error handling parent syntax or keywords."
   (setq imenu-generic-expression robot-log-imenu-generic-expression))
 
 (provide 'robot-log)
+
+(provide 'robot-log)
+
+;;; robot-log.el ends here
