@@ -4,8 +4,8 @@
 
 ;; Keywords: convenience files
 ;; Homepage: https://git.sr.ht/~apteryx/emacs-robot-log
-;; Package-Requires: ((emacs "28"))
-;; Package-Version: 0.1.0
+;; Package-Requires: ((emacs "28.1"))
+;; Version: 0.1.4
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; robot-log is free software; you can redistribute it and/or modify
@@ -516,7 +516,7 @@ syntax or keywords."
 ;;; the .log file extension and .log is not mandatory for
 ;;; RobotFramework debug log files.
 ;;;###autoload
-(add-to-list 'auto-mode-alist '("\\.log$" . robot-log-mode) t)
+(add-to-list 'auto-mode-alist '("\\.log\\'" . robot-log-mode) t)
 
 ;;;###autoload
 (define-derived-mode robot-log-mode special-mode
