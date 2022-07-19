@@ -498,19 +498,21 @@ syntax or keywords."
   (and arg (= 0 arg) (user-error "Arg cannot be 0"))
   (robot-log-next-unhandled-error (- (or arg 1))))
 
-(defun robot-log-configure-keymap (map)
-  "Add the `robot-log-mode' keys to MAP."
-  (define-key map (kbd "n") 'robot-log-next)
-  (define-key map (kbd "p") 'robot-log-previous)
-  (define-key map (kbd "N") 'robot-log-next-same-level)
-  (define-key map (kbd "P") 'robot-log-previous-same-level)
-  (define-key map (kbd "TAB") 'robot-log-toggle)
-  (define-key map (kbd "l") 'robot-log-fold-level)
-  (define-key map (kbd "L") 'robot-log-unhide-all)
-  (define-key map (kbd "e") 'robot-log-next-error)
-  (define-key map (kbd "E") 'robot-log-previous-error)
-  (define-key map (kbd "u") 'robot-log-next-unhandled-error)
-  (define-key map (kbd "U") 'robot-log-previous-unhandled-error))
+(defvar robot-log-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "n") 'robot-log-next)
+    (define-key map (kbd "p") 'robot-log-previous)
+    (define-key map (kbd "N") 'robot-log-next-same-level)
+    (define-key map (kbd "P") 'robot-log-previous-same-level)
+    (define-key map (kbd "TAB") 'robot-log-toggle)
+    (define-key map (kbd "l") 'robot-log-fold-level)
+    (define-key map (kbd "L") 'robot-log-unhide-all)
+    (define-key map (kbd "e") 'robot-log-next-error)
+    (define-key map (kbd "E") 'robot-log-previous-error)
+    (define-key map (kbd "u") 'robot-log-next-unhandled-error)
+    (define-key map (kbd "U") 'robot-log-previous-unhandled-error)
+    map)
+  "The default key map for the `robot-log-mode' minor mode.")
 
 ;;; Append to the auto-mode alist, because many modes may want to own
 ;;; the .log file extension and .log is not mandatory for
@@ -524,7 +526,6 @@ syntax or keywords."
   "Major mode for viewing RobotFramework debug logs.
 
 \\{robot-log-mode-map}"
-  (robot-log-configure-keymap robot-log-mode-map)
   (setq font-lock-defaults `(,robot-log-font-lock-keywords))
   (setq imenu-generic-expression robot-log-imenu-generic-expression))
 
