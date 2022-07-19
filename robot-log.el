@@ -530,6 +530,4 @@ syntax or keywords."
 
 (provide 'robot-log)
 
-(provide 'robot-log)
-
 ;;; robot-log.el ends here
