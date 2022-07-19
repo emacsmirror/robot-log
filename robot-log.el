@@ -257,7 +257,7 @@ REGEXP and ARG are to be used as documented by function
 Move backward when ARG is negative.  It returns a list containing
 the keyword level, its type and its name, when available."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
+  (when (zerop arg) (user-error "Arg cannot be 0"))
   (robot-log-search-forward robot-log-start-regexp arg)
   (list (length (match-string 2))
         (substring-no-properties (match-string 3))
@@ -267,7 +267,7 @@ the keyword level, its type and its name, when available."
   "Move to the previous start mark, repeating ARG times.
 Move backward when ARG is negative."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
+  (when (zerop arg) (user-error "Arg cannot be 0"))
   (robot-log-next (- (or arg 1))))
 
 (defun robot-log-current-start-level ()
@@ -284,7 +284,7 @@ Move backward when ARG is negative."
   "Move to the next keyword which is at the same depth.
 The search is repeated ARG times.  Move backward when ARG is negative."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
+  (when (zerop arg) (user-error "Arg cannot be 0"))
   (let ((level (robot-log-current-start-level)))
     (robot-log-search-forward (robot-log-start-level-regexp level) arg)))
 
@@ -293,7 +293,7 @@ The search is repeated ARG times.  Move backward when ARG is negative."
 The search is repeated ARG times.  Move backward when ARG is
 negative."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
+  (when (zerop arg) (user-error "Arg cannot be 0"))
   (robot-log-next-same-level (- (or arg 1))))
 
 (defun robot-log-search-start-backward ()
@@ -375,7 +375,7 @@ The result is returned as a pair."
   "Go to the next error, repeating ARG times.
 When ARG is negative, reverse the search direction."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
+  (when (zerop arg) (user-error "Arg cannot be 0"))
   (robot-log-search-forward
    (concat "\\(" robot-log-error-level-regexp
            "\\|" robot-log-fail-level-regexp "\\)") arg))
@@ -384,7 +384,7 @@ When ARG is negative, reverse the search direction."
   "Move to the previous error, repeating ARG times.
 When ARG is negative, reverse the search direction."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
+  (when (zerop arg) (user-error "Arg cannot be 0"))
   (robot-log-next-error (- (or arg 1))))
 
 (defun robot-log-handling-keyword-p (keyword)
@@ -469,20 +469,19 @@ When ARG is negative, reverse the search direction.  Un-handled
 means that the error doesn't have any error handling parent
 syntax or keywords."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
+  (when (zerop arg) (user-error "Arg cannot be 0"))
   (robot-log-compute-handled-lines)
   (let ((unhandled-error
          (save-excursion
            (named-let iter ((count 1))
              (let ((position
                     (named-let next ((pos nil))
-                      (if (not pos)
-                          (progn
-                            (robot-log-next-error (if (< arg 0) -1 1))
-                            (next (if (not (robot-log-handled-p))
-                                      (point)
-                                    nil)))
-                        pos))))
+                      (if pos
+                          pos
+                        (robot-log-next-error (if (< arg 0) -1 1))
+                        (next (if (not (robot-log-handled-p))
+                                  (point)
+                                nil))))))
                (if (< count (abs arg))
                    (iter (1+ count))
                  position))))))
@@ -495,7 +494,7 @@ When ARG is negative, reverse the search direction.  Un-handled
 means that the error doesn't have any error handling parent
 syntax or keywords."
   (interactive "^p")
-  (and arg (= 0 arg) (user-error "Arg cannot be 0"))
+  (when (zerop arg) (user-error "Arg cannot be 0"))
   (robot-log-next-unhandled-error (- (or arg 1))))
 
 (defvar robot-log-mode-map
